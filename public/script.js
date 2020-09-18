@@ -1,16 +1,15 @@
 const socket = io("/");
 const videoGrid = document.getElementById("video-grid");
-const myVideo = document.createElement("video");
-myVideo.muted = true;
-
-var peer = new Peer(undefined, {
+const myPeer = new Peer(undefined, {
   path: "/peerjs",
   host: "/",
-  post: "443",
+  port: "443",
 });
 
 let myVideoStream;
-
+const myVideo = document.createElement("video");
+myVideo.muted = true;
+const peers = {};
 navigator.mediaDevices
   .getUserMedia({
     video: true,
@@ -19,7 +18,7 @@ navigator.mediaDevices
   .then((stream) => {
     myVideoStream = stream;
     addVideoStream(myVideo, stream);
-    peer.on("call", (call) => {
+    myPeer.on("call", (call) => {
       call.answer(stream);
       const video = document.createElement("video");
       call.on("stream", (userVideoStream) => {
@@ -30,7 +29,6 @@ navigator.mediaDevices
     socket.on("user-connected", (userId) => {
       connectToNewUser(userId, stream);
     });
-
     // input value
     let text = $("input");
     // when press enter send message
@@ -46,30 +44,37 @@ navigator.mediaDevices
     });
   });
 
-peer.on("open", (id) => {
+socket.on("user-disconnected", (userId) => {
+  if (peers[userId]) peers[userId].close();
+});
+
+myPeer.on("open", (id) => {
   socket.emit("join-room", ROOM_ID, id);
 });
 
-socket.emit("join-room", ROOM_ID);
-
-const connectToNewUser = (userId, stream) => {
-  const call = Peer.call(userId, stream);
+function connectToNewUser(userId, stream) {
+  const call = myPeer.call(userId, stream);
   const video = document.createElement("video");
   call.on("stream", (userVideoStream) => {
     addVideoStream(video, userVideoStream);
   });
-};
+  call.on("close", () => {
+    video.remove();
+  });
 
-const addVideoStream = (video, stream) => {
+  peers[userId] = call;
+}
+
+function addVideoStream(video, stream) {
   video.srcObject = stream;
   video.addEventListener("loadedmetadata", () => {
     video.play();
   });
   videoGrid.append(video);
-};
+}
 
 const scrollToBottom = () => {
-  let d = $(".main__chat_window");
+  var d = $(".main__chat_window");
   d.scrollTop(d.prop("scrollHeight"));
 };
 
