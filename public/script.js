@@ -6,7 +6,7 @@ myVideo.muted = true;
 var peer = new Peer(undefined, {
   path: "/peerjs",
   host: "/",
-  post: "8000",
+  post: "443",
 });
 
 let myVideoStream;
